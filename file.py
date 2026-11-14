@@ -1,31 +1,27 @@
-#уралвагонзовод  концерн калашникова
-
-
-
 import csv
 import hashlib
-import io
 import logging
 import os
 import re
 import secrets
 import datetime
+import shutil
+from pathlib import Path
 import uvicorn
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, Form, Request, UploadFile, File
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
-from PIL import Image, ImageOps
+from PIL import Image
 
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-
 
 USERS_FILE = 'user.csv'        
 SECRET_FILE = '.secret_key'   
@@ -33,11 +29,9 @@ MIN_PASSWORD, MAX_PASSWORD = 8, 64
 MIN_NAME, MAX_NAME = 2, 50
 CERT_FILE = "cert.pem"
 KEY_FILE = "key.pem"
-
-# Аватары
-AVATAR_DIR = 'avatars'                  # папка для аватаров
-AVATAR_SIZE = 256                       # аватар делаем квадратом 256×256
-MAX_AVATAR_BYTES = 5 * 1024 * 1024      # не больше 5 МБ
+AVATAR_DIR = 'avatars'
+AVATAR_SIZE = 256
+MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,7 +39,6 @@ logging.basicConfig(
     handlers=[logging.FileHandler('sessions.log', encoding='utf-8'), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
-
 
 def generate_or_load_cert():
     if os.path.exists(CERT_FILE) and os.path.exists(KEY_FILE):
@@ -93,7 +86,6 @@ def generate_or_load_cert():
 
     return KEY_FILE, CERT_FILE
 
-
 def get_secret_key():
     if os.path.exists(SECRET_FILE):
         with open(SECRET_FILE, encoding='utf-8') as f:
@@ -105,28 +97,23 @@ def get_secret_key():
         f.write(key)
     return key
 
-
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=get_secret_key(), max_age=1500, same_site='lax')
 app.mount('/static', StaticFiles(directory='static'), name='static')
 app.mount('/sources', StaticFiles(directory='sources'), name='sources')
 templates = Jinja2Templates(directory='templates')
 
-
-#  Пользователи
 def read_users():
     if not os.path.exists(USERS_FILE):
         return []
     with open(USERS_FILE, encoding='utf-8-sig', newline='') as f:
         return list(csv.DictReader(f))
 
-
 def find_user(email):
     for user in read_users():
         if user['email'] == email:
             return user
     return None
-
 
 def add_user(name, email, password):
     new_file = not os.path.exists(USERS_FILE)
@@ -136,34 +123,26 @@ def add_user(name, email, password):
             writer.writerow(['name', 'email', 'password'])
         writer.writerow([name, email, hash_password(password)])
 
-
-#  Пароли 
 def make_hash(password, salt):
     return hashlib.sha256((salt + password).encode('utf-8')).hexdigest()
-
 
 def hash_password(password):
     salt = secrets.token_hex(8)
     return salt + '$' + make_hash(password, salt)
 
-
 def check_password(password, saved):
     salt = saved.split('$')[0]
     return saved == salt + '$' + make_hash(password, salt)
 
-
-#  Проверка данных регистрации
 def check_name(name):
     if len(name) < MIN_NAME:
         return f'Введите имя (минимум {MIN_NAME} символа)'
     if len(name) > MAX_NAME:
         return f'Имя слишком длинное (максимум {MAX_NAME} символов)'
 
-
 def check_email(email):
     if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
         return 'Некорректный email'
-
 
 def check_password_strength(password):
     if len(password) < MIN_PASSWORD:
@@ -175,35 +154,37 @@ def check_password_strength(password):
     if not re.search(r'[0-9]', password):
         return 'В пароле должна быть хотя бы одна цифра'
 
-
-#  Аватары
-def avatar_path(email):
-    # Имя файла — отпечаток почты, а не имя от пользователя: так нельзя подсунуть свой путь
+def get_avatar_file_path(email: str) -> str:
     return os.path.join(AVATAR_DIR, hashlib.sha256(email.encode('utf-8')).hexdigest() + '.png')
 
+def save_avatar(email: str, avatar: UploadFile) -> str:
+    avatar_path = "sources/default.png"
+    if avatar.filename:
+        os.makedirs("sources", exist_ok=True)
+        file_location = Path("sources") / avatar.filename
+        
+        avatar.file.seek(0)
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(avatar.file, buffer)
 
-def save_avatar(email, data):
-    """Делает из присланных байтов квадратную PNG-картинку. True — получилось, False — это не картинка."""
-    try:
-        img = Image.open(io.BytesIO(data))
-        img = ImageOps.exif_transpose(img)                                   # повернуть, как снято на телефон
-        img = ImageOps.fit(img.convert('RGBA'), (AVATAR_SIZE, AVATAR_SIZE))  # обрезать до квадрата
-    except Exception:
-        return False
-    os.makedirs(AVATAR_DIR, exist_ok=True)
-    img.save(avatar_path(email), 'PNG')                                      # сохраняем заново — лишнее пропадает
-    logger.info(f'Аватар обновлён | email={email}')
-    return True
+        img = Image.open(file_location)
+        width, height = img.size
 
-
-#  Сессии 
+        if height > 300:
+            new_height = 300
+            new_width = int(width * (new_height / height))
+            resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+            img = img.resize((new_width, new_height), resample_filter)
+        
+        img.save(file_location)
+        avatar_path = str(file_location)
+        
+    return avatar_path
 
 active_sessions = set()
 
-
 def client_ip(request):
     return request.client.host if request.client else 'неизвестен'
-
 
 def start_session(request, email):
     end_session(request)                         
@@ -213,14 +194,12 @@ def start_session(request, email):
     request.session['user_email'] = email
     logger.info(f'Сессия создана | email={email}')
 
-
 def end_session(request):
     email = request.session.get('user_email')
     active_sessions.discard(request.session.get('sid'))
     request.session.clear()
     if email:
         logger.info(f'Сессия завершена | email={email}')
-
 
 def session_email(request):
     sid = request.session.get('sid')
@@ -231,7 +210,6 @@ def session_email(request):
         logger.warning(f'Устаревшая сессия | email={email}')
     return None
 
-
 def get_user(request):
     email = session_email(request)
     if email is None:
@@ -241,17 +219,6 @@ def get_user(request):
         end_session(request)
     return user
 
-
-def require_user(request):
-    """Вошедший пользователь. Если не вошёл — ошибка 403."""
-    user = get_user(request)
-    if user is None:
-        logger.warning(f'Отказано в доступе к {request.url.path} | ip={client_ip(request)}')
-        raise StarletteHTTPException(status_code=403)
-    return user
-
-
-# Просим браузер не хранить страницы в кэше, чтобы кнопка «Назад» не показывала старую копию
 @app.middleware('http')
 async def no_cache_for_pages(request: Request, call_next):
     response = await call_next(request)
@@ -259,15 +226,12 @@ async def no_cache_for_pages(request: Request, call_next):
         response.headers['Cache-Control'] = 'no-store'
     return response
 
-
-# Страницы 
 @app.get('/', response_class=HTMLResponse)
 @app.get('/home', response_class=HTMLResponse)
 def home_page(request: Request):
     user = get_user(request)
     name = user['name'] if user else 'красотка'
     return templates.TemplateResponse(request=request, name='home.html', context={'username': name})
-
 
 @app.get('/login', response_class=HTMLResponse)
 def login_page(request: Request, registered: str = None, loggedout: str = None):
@@ -278,27 +242,22 @@ def login_page(request: Request, registered: str = None, loggedout: str = None):
         notice = 'Ты нажала «Назад», поэтому сессия закрыта. Войди снова 💖'
     return templates.TemplateResponse(request=request, name='login.html', context={'notice': notice})
 
-
 @app.get('/register', response_class=HTMLResponse)
 def register_page(request: Request):
     return templates.TemplateResponse(request=request, name='register.html')
 
-
 @app.get('/main', response_class=HTMLResponse)
 def cabinet_page(request: Request):
-    user = require_user(request)
-    message = request.session.pop('avatar_message', None)      # сообщение показываем один раз
-    return templates.TemplateResponse(
-        request=request, name='main.html',
-        context={'username': user['name'], 'message': message,
-                 'has_avatar': os.path.exists(avatar_path(user['email']))})
-
+    user = get_user(request)
+    if user is None:
+        logger.warning(f'Отказано в доступе к /main | ip={client_ip(request)}')
+        raise StarletteHTTPException(status_code=403)
+    return templates.TemplateResponse(request=request, name='main.html', context={'username': user['name']})
 
 @app.get('/logout')
 def logout(request: Request):
     end_session(request)
     return RedirectResponse(url='/login', status_code=303)
-
 
 @app.post('/back')
 def pressed_back(request: Request):
@@ -308,44 +267,13 @@ def pressed_back(request: Request):
     end_session(request)
     return {'logged_out': email is not None}
 
-
-#  Аватар: показать и загрузить
-@app.get('/avatar')
-def show_avatar(request: Request):
-    user = require_user(request)
-    path = avatar_path(user['email'])
-    if not os.path.exists(path):
-        raise StarletteHTTPException(status_code=404)
-    return FileResponse(path, media_type='image/png', headers={'Cache-Control': 'no-cache'})
-
-
-@app.post('/avatar')
-async def upload_avatar(request: Request, file: UploadFile = File(None)):
-    user = require_user(request)
-
-    message = 'Сначала выбери картинку'
-    if file and file.filename:
-        data = await file.read(MAX_AVATAR_BYTES + 1)           # читаем не больше лимита
-        if len(data) > MAX_AVATAR_BYTES:
-            message = 'Файл слишком большой (не больше 5 МБ)'
-        elif save_avatar(user['email'], data):
-            message = 'Аватар обновлён 💖'
-        else:
-            message = 'Это не картинка. Выбери JPG, PNG или WEBP'
-
-    request.session['avatar_message'] = message
-    return RedirectResponse(url='/main', status_code=303)
-
-
 @app.get('/404', response_class=HTMLResponse)
 def not_found_page(request: Request):
     return templates.TemplateResponse(request=request, name='404.html', status_code=404)
 
-
 @app.get('/403', response_class=HTMLResponse)
 def forbidden_page(request: Request):
     return templates.TemplateResponse(request=request, name='403.html', status_code=403)
-
 
 @app.exception_handler(StarletteHTTPException)
 async def error_pages(request: Request, exc: StarletteHTTPException):
@@ -354,8 +282,6 @@ async def error_pages(request: Request, exc: StarletteHTTPException):
         return templates.TemplateResponse(request=request, name=pages[exc.status_code], status_code=exc.status_code)
     return await http_exception_handler(request, exc)
 
-
-# Регистрация и вход 
 @app.post('/register')
 def register(request: Request,
              name: str = Form(...),
@@ -380,7 +306,6 @@ def register(request: Request,
     logger.info(f'Новый пользователь | email={email} | name={name}')
     return RedirectResponse(url='/login?registered=1', status_code=303)
 
-
 @app.post('/login')
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
     user = find_user(username.strip().lower())
@@ -393,6 +318,25 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     start_session(request, user['email'])
     return RedirectResponse(url='/main', status_code=303)
 
+@app.post('/update_avatar')
+async def update_avatar(
+    request: Request,
+    avatar: UploadFile = File(...)
+):
+    user = get_user(request)
+    if not user:
+        raise StarletteHTTPException(status_code=403, detail="Доступ запрещён")
+    
+    if not avatar.filename:
+        return templates.TemplateResponse(
+            request=request, 
+            name='main.html', 
+            context={'username': user['name'], 'error': 'Файл не выбран'}
+        )
+
+    saved_path = save_avatar(user['email'], avatar)
+    
+    return RedirectResponse(url='/main', status_code=303)
 
 if __name__ == "__main__":
     key_path, cert_path = generate_or_load_cert()
