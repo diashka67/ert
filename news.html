@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ item.title }} — БарбиЛенд</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/home.css">
+  <link rel="stylesheet" href="/static/news.css">
+  <link rel="stylesheet" href="/static/barbie.css">
+  <script src="/sources/back.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">💖 БарбиЛенд</div>
+    <nav class="nav">
+      <a href="/home">Главная</a>
+      {% if user %}
+        <a href="/main">Личный кабинет</a>
+        <a href="/logout">Выйти</a>
+      {% else %}
+        <a href="/login">Вход</a>
+        <a href="/register">Регистрация</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="main">
+    <a href="/home" class="back-link">← К новостям</a>
+
+    <article class="card article-card">
+      <h1 class="article-title">{{ item.title }}</h1>
+
+      <div class="news-meta">
+        <span>📅 {{ item.date }}</span>
+        <span>✍️ {{ item.author }}</span>
+        <span>👁 {{ item.views }}</span>
+      </div>
+
+      {% if item.preview %}
+      <img class="article-preview" src="/news_images/{{ item.preview }}" alt="">
+      {% endif %}
+
+      <p class="article-annotation">{{ item.annotation }}</p>
+      <div class="article-text">{{ item.text }}</div>
+
+      {% if item.images %}
+      <div class="gallery">
+        {% for img in item.images %}
+        <a href="/news_images/{{ img }}" target="_blank"><img src="/news_images/{{ img }}" alt=""></a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="reactions">
+        {% if user %}
+        <form method="POST" action="/news/{{ item.id }}/like">
+          <button type="submit" class="reaction{% if liked %} active{% endif %}">👍 {{ item.likes|length }}</button>
+        </form>
+        <form method="POST" action="/news/{{ item.id }}/dislike">
+          <button type="submit" class="reaction{% if disliked %} active{% endif %}">👎 {{ item.dislikes|length }}</button>
+        </form>
+        {% else %}
+        <span class="reaction">👍 {{ item.likes|length }}</span>
+        <span class="reaction">👎 {{ item.dislikes|length }}</span>
+        <a href="/login" class="link">Войди, чтобы поставить оценку</a>
+        {% endif %}
+      </div>
+    </article>
+
+    <section class="card comments" id="comments">
+      <h2>Комментарии 💬 ({{ item.comments|length }})</h2>
+
+      {% for c in item.comments %}
+      <div class="comment">
+        <div class="comment-head"><strong>{{ c.author }}</strong><span>{{ c.date }}</span></div>
+        <div class="comment-text">{{ c.text }}</div>
+      </div>
+      {% else %}
+      <p class="empty-news">Пока комментариев нет — будь первой ✨</p>
+      {% endfor %}
+
+      {% if user %}
+      <form method="POST" action="/news/{{ item.id }}/comment" class="comment-form">
+        <textarea name="text" rows="3" maxlength="500" placeholder="Твой комментарий..." required></textarea>
+        <button type="submit" class="btn btn-primary">Отправить 💖</button>
+      </form>
+      {% else %}
+      <p class="login-hint"><a href="/login" class="link">Войди</a>, чтобы оставить комментарий.</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer class="footer">
+    © БарбиЛенд. Сделано с 💖
+  </footer>
+</body>
+</html>
