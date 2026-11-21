@@ -1,0 +1,210 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #fff0f8;
+  color: #6b0f45;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(184, 16, 111, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0218a;
+}
+
+.nav {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.nav a {
+  text-decoration: none;
+  color: #8c2c62;
+  font-size: 15px;
+  transition: color 0.2s;
+}
+
+.nav a:hover,
+.nav a.active {
+  color: #e0218a;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.hero {
+  text-align: center;
+  padding: 24px 0 32px;
+}
+
+.hero h1 {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+
+.hero h1 span { color: #e0218a; }
+
+.hero p {
+  color: #a24b7c;
+  font-size: 17px;
+}
+
+/* форма добавления новости */
+.add-news {
+  margin-bottom: 28px;
+  padding: 24px;
+}
+
+.add-news h2 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.news-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.news-form input,
+.news-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #ffa8d5;
+  border-radius: 14px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+}
+
+.news-form input:focus,
+.news-form textarea:focus {
+  border-color: #e0218a;
+}
+
+.news-form button {
+  align-self: flex-start;
+  padding: 12px 28px;
+}
+
+/* список новостей */
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.news-card {
+  padding: 22px 24px;
+  position: relative;
+}
+
+.news-card h3 {
+  font-size: 20px;
+  margin-bottom: 10px;
+  color: #e0218a;
+}
+
+.news-text {
+  color: #6b0f45;
+  font-size: 15px;
+  line-height: 1.55;
+  margin-bottom: 14px;
+  white-space: pre-wrap;
+}
+
+.news-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #d08ab3;
+}
+
+.delete-form {
+  margin-top: 12px;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: #e11d48;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.btn-delete:hover {
+  text-decoration: underline;
+}
+
+.empty-news {
+  text-align: center;
+  color: #d08ab3;
+  padding: 40px 0;
+  font-size: 16px;
+}
+
+.footer {
+  text-align: center;
+  padding: 20px;
+  color: #d08ab3;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .hero h1 { font-size: 28px; }
+  .header { padding: 14px 20px; }
+}
+
+/* ===== Плитка новости (кликабельна целиком) ===== */
+.add-news-link { text-align: center; margin-bottom: 24px; }
+
+.news-card { display: flex; gap: 20px; align-items: flex-start; cursor: pointer; }
+.news-body { flex: 1; min-width: 0; }
+
+.news-preview {
+  width: 220px;
+  height: 150px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border-radius: 18px;
+  border: 3px solid #ffb6dc;
+}
+
+.news-link { color: inherit; text-decoration: none; }
+/* невидимый слой поверх всей плитки: клик в любом месте открывает новость */
+.news-link::after { content: ""; position: absolute; inset: 0; border-radius: 28px; }
+
+.news-annotation { color: #6b0f45; font-size: 15px; line-height: 1.5; margin-bottom: 12px; }
+.news-meta { flex-wrap: wrap; row-gap: 6px; }
+
+/* кнопка «Удалить» должна быть выше невидимого слоя, иначе на неё нельзя нажать */
+.delete-form { position: relative; z-index: 2; }
+
+@media (max-width: 600px) {
+  .news-card { flex-direction: column; }
+  .news-preview { width: 100%; height: 180px; }
+}

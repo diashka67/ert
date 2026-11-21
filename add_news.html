@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Добавить новость — БарбиЛенд</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/home.css">
+  <link rel="stylesheet" href="/static/news.css">
+  <link rel="stylesheet" href="/static/barbie.css">
+  <script src="/sources/back.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">💖 БарбиЛенд</div>
+    <nav class="nav">
+      <a href="/home">Главная</a>
+      {% if user %}
+        <a href="/main">Личный кабинет</a>
+        <a href="/logout">Выйти</a>
+      {% else %}
+        <a href="/login">Вход</a>
+        <a href="/register">Регистрация</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="main">
+    <a href="/home" class="back-link">← К новостям</a>
+
+    <section class="add-news card">
+      <h2>Добавить новость 💅</h2>
+
+      {% if error %}<div class="news-error">{{ error }}</div>{% endif %}
+
+      <form method="POST" action="/add_news" enctype="multipart/form-data" class="news-form">
+        <label>Заголовок
+          <input type="text" name="title" value="{{ title or '' }}" required maxlength="100">
+        </label>
+
+        <label>Аннотация <small>(коротко, показывается на плитке)</small>
+          <textarea name="annotation" rows="2" required maxlength="200">{{ annotation or '' }}</textarea>
+        </label>
+
+        <label>Дата публикации
+          <input type="date" name="date" value="{{ date }}" required>
+        </label>
+
+        <label>Превью-картинка <small>(для плитки на главной, необязательно)</small>
+          <input type="file" name="preview" accept="image/*">
+        </label>
+
+        <label>Текст статьи
+          <textarea name="text" rows="10" required maxlength="10000">{{ text or '' }}</textarea>
+        </label>
+
+        <label>Картинки в статье <small>(можно выбрать несколько, до 10 штук, необязательно)</small>
+          <input type="file" name="images" accept="image/*" multiple>
+        </label>
+
+        <button type="submit" class="btn btn-primary">Опубликовать 💖</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
