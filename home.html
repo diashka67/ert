@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Главная — БарбиЛенд</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Pacifico&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/home.css">
+  <link rel="stylesheet" href="/static/barbie.css">
+  <script src="/sources/back.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">💖 БарбиЛенд</div>
+    <nav class="nav">
+      <a href="/home" class="active">Главная</a>
+      {% if user %}
+        <a href="/main">Личный кабинет</a>
+        <a href="/logout">Выйти</a>
+      {% else %}
+        <a href="/login">Вход</a>
+        <a href="/register">Регистрация</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      💖 Привет, {{username}}! &nbsp; ✨ Сегодня отличный день, чтобы быть розовой &nbsp; 💅 Всё получится &nbsp; 🎀 Ты — звезда &nbsp; 👑 Привет, красотка! &nbsp; ✨ Сегодня отличный день, чтобы быть розовой &nbsp; 💅 Всё получится &nbsp; 🎀 Ты — звезда &nbsp;
+    </div>
+  </div>
+
+  <main class="main">
+    <section class="hero">
+      <p class="hero-tag">📰 Новости БарбиЛенда</p>
+      <h1 id="greeting">Добро пожаловать в <span>БарбиЛенд</span>!</h1>
+      <p>Самые розовые новости — только здесь.</p>
+    </section>
+
+    {% if can_edit %}
+    <p class="add-news-link"><a href="/add_news" class="btn btn-primary">Добавить новость 💅</a></p>
+    {% endif %}
+
+    <section class="news-list">
+      {% if news %}
+        {% for item in news %}
+        <article class="card news-card">
+          {% if item.preview %}
+          <img class="news-preview" src="/news_images/{{ item.preview }}" alt="">
+          {% endif %}
+          <div class="news-body">
+            <h3><a href="/news/{{ item.id }}" class="news-link">{{ item.title }}</a></h3>
+            <p class="news-annotation">{{ item.annotation }}</p>
+            <div class="news-meta">
+              <span>📅 {{ item.date }}</span>
+              <span>👍 {{ item.likes|length }}</span>
+              <span>👎 {{ item.dislikes|length }}</span>
+              <span>💬 {{ item.comments|length }}</span>
+              <span>👁 {{ item.views }}</span>
+            </div>
+            {% if is_admin %}
+            <form method="POST" action="/delete_news" class="delete-form">
+              <input type="hidden" name="news_id" value="{{ item.id }}">
+              <button type="submit" class="btn-delete">Удалить</button>
+            </form>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      {% else %}
+        <p class="empty-news">Пока новостей нет — скоро появятся ✨</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer class="footer">
+    © <span id="year"></span> БарбиЛенд. Сделано с 💖
+  </footer>
+
+  <script src="/sources/home.js"></script>
+</body>
+</html>
